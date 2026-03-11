@@ -20,7 +20,7 @@ import {
 import { Account } from '../../models/account'
 import { Author, UnknownAuthor } from '../../models/author'
 import { Checkbox, CheckboxValue } from '../lib/checkbox'
-import { CommitOptions, IFileListFilterState } from '../../lib/app-state'
+import { CommitOptions, IAIState, IFileListFilterState } from '../../lib/app-state'
 import {
   isSafeFileExtension,
   DefaultEditorLabel,
@@ -240,6 +240,9 @@ interface IFilterChangesListProps {
     repository: Repository,
     options: CommitOptions
   ) => void
+
+  /** AI feature state for this repository */
+  readonly aiState?: IAIState
 }
 
 interface IFilterChangesListState {
@@ -1006,7 +1009,21 @@ export class FilterChangesList extends React.Component<
         hasCommitHooks={this.props.hasCommitHooks}
         skipCommitHooks={this.props.skipCommitHooks}
         onUpdateCommitOptions={this.props.onUpdateCommitOptions}
+        isAIGenerating={this.props.aiState?.isAIOperationInProgress}
+        aiLastError={this.props.aiState?.lastAIError}
+        onGenerateAICommitMessage={this.onGenerateAICommitMessage}
       />
+    )
+  }
+
+  private onGenerateAICommitMessage = (
+    filesSelected: ReadonlyArray<WorkingDirectoryFileChange>,
+    adHocInstructions: string
+  ) => {
+    this.props.dispatcher.generateAICommitMessage(
+      this.props.repository,
+      filesSelected,
+      adHocInstructions
     )
   }
 

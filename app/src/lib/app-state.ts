@@ -601,6 +601,47 @@ export interface IRepositoryState {
    * by means of passing the `--no-verify` flag to git commit
    */
   readonly skipCommitHooks: boolean
+
+  /** AI extension state for this repository */
+  readonly aiState: IAIState
+}
+
+/** AI operation types for tracking which operation is in progress */
+export enum AIOperationType {
+  CommitMessage = 'commit-message',
+  PRDescription = 'pr-description',
+  PRReview = 'pr-review',
+  BranchNaming = 'branch-naming',
+  Changelog = 'changelog',
+  ExplainChanges = 'explain-changes',
+}
+
+/** AI-specific state for a repository */
+export interface IAIState {
+  readonly isAIOperationInProgress: boolean
+  readonly activeAIOperation: AIOperationType | null
+  readonly lastAIError: string | null
+  readonly generatedPRDescription: IAIGeneratedPRDescription | null
+  readonly prReviewFeedback: IAIPRReviewFeedback | null
+  readonly generatedChangelog: string | null
+}
+
+export interface IAIGeneratedPRDescription {
+  readonly title: string
+  readonly body: string
+}
+
+export interface IAIPRReviewFeedback {
+  readonly summary: string
+  readonly issues: ReadonlyArray<IAIPRReviewIssue>
+}
+
+export interface IAIPRReviewIssue {
+  readonly file: string
+  readonly line?: number
+  readonly severity: 'info' | 'warning' | 'error'
+  readonly message: string
+  readonly suggestion?: string
 }
 
 export type CommitOptions = Pick<IRepositoryState, 'skipCommitHooks'>

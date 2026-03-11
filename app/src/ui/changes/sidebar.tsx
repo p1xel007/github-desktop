@@ -4,6 +4,7 @@ import * as React from 'react'
 import { DiffSelectionType } from '../../models/diff'
 import {
   IChangesState,
+  IAIState,
   RebaseConflictState,
   isRebaseConflictState,
   ChangesSelectionKind,
@@ -113,6 +114,9 @@ interface IChangesSidebarProps {
     repository: Repository,
     options: CommitOptions
   ) => void
+
+  /** AI feature state for this repository */
+  readonly aiState?: IAIState
 }
 
 export class ChangesSidebar extends React.Component<IChangesSidebarProps, {}> {
@@ -474,6 +478,7 @@ export class ChangesSidebar extends React.Component<IChangesSidebarProps, {}> {
           hasCommitHooks={this.props.hasCommitHooks}
           skipCommitHooks={this.props.skipCommitHooks}
           onUpdateCommitOptions={this.props.onUpdateCommitOptions}
+          aiState={this.props.aiState}
         />
         {this.renderUndoCommit(rebaseConflictState)}
       </div>

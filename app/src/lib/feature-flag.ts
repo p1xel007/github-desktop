@@ -106,3 +106,6 @@ export function enableAccessibleListToolTips(): boolean {
 export const enableHooksEnvironment = () => true
 
 export const enableHooksByDefault = enableBetaFeatures
+
+/** Should the app enable BYOK AI features (commit messages, PR descriptions, etc.)? */
+export const enableAIFeatures = () => true

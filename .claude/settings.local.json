@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nvm use 24.11.1)",
+      "Bash(export PATH=\"/c/Users/Sarwar/AppData/Roaming/nvm/v24.11.1:$PATH\")",
+      "Read(//c/Users/Sarwar/AppData/Roaming/**)",
+      "Bash(nvm root)",
+      "Read(//c/Users/Sarwar/AppData/Local/nvm//**)",
+      "Bash(/c/Users/Sarwar/AppData/Local/nvm/v24.11.1/node.exe --version)",
+      "Bash(export NVM_NODE=\"/c/Users/Sarwar/AppData/Local/nvm/v24.11.1\")",
+      "Bash(export PATH=\"$NVM_NODE:$PATH\")",
+      "Bash(npm --version)",
+      "Bash(export PATH=\"/c/Users/Sarwar/AppData/Local/nvm/v24.11.1:$PATH\")",
+      "Bash(yarn install)",
+      "Bash(yarn build:dev)",
+      "Bash(PORT=3456 yarn start)",
+      "Bash(netstat -aon)",
+      "Bash(taskkill //PID 173260 //F)"
+    ]
+  }
+}

@@ -42,6 +42,9 @@ import { Prompts } from './prompts'
 import { Repository } from '../../models/repository'
 import { Notifications } from './notifications'
 import { Accessibility } from './accessibility'
+import { AISettings } from '../ai/ai-settings'
+import { IAISettings, loadAISettings, saveAISettings } from '../../lib/ai/ai-config'
+import { initializeAIProviders } from '../../lib/ai/ai-init'
 import {
   ICustomIntegration,
   TargetPathArgument,
@@ -151,6 +154,7 @@ interface IPreferencesState {
   readonly selectedGitHookEnvShell: string | undefined
   // Whether the preferences related to Git hooks environment have been changed
   readonly hooksPreferencesDirty: boolean
+  readonly aiSettings: IAISettings
 }
 
 /**
@@ -213,7 +217,10 @@ export class Preferences extends React.Component<
       cacheGitHookEnv: getCacheHooksEnv(),
       selectedGitHookEnvShell: getGitHookEnvShell(),
       hooksPreferencesDirty: false,
+      aiSettings: loadAISettings(),
     }
+
+    initializeAIProviders()
   }
 
   public async componentWillMount() {
@@ -342,6 +349,10 @@ export class Preferences extends React.Component<
               <Octicon className="icon" symbol={octicons.accessibility} />
               Accessibility
             </span>
+            <span id={this.getTabId(PreferencesTab.AI)}>
+              <Octicon className="icon" symbol={octicons.copilot} />
+              AI
+            </span>
           </TabBar>
 
           {this.renderActiveTab()}
@@ -377,6 +388,9 @@ export class Preferences extends React.Component<
         break
       case PreferencesTab.Accessibility:
         suffix = 'accessibility'
+        break
+      case PreferencesTab.AI:
+        suffix = 'ai'
         break
       default:
         return assertNever(tab, `Unknown tab type: ${tab}`)
@@ -596,6 +610,14 @@ export class Preferences extends React.Component<
             showDiffCheckMarks={this.state.showDiffCheckMarks}
             onShowDiffCheckMarksChanged={this.onShowDiffCheckMarksChanged}
             onUnderlineLinksChanged={this.onUnderlineLinksChanged}
+          />
+        )
+        break
+      case PreferencesTab.AI:
+        View = (
+          <AISettings
+            aiSettings={this.state.aiSettings}
+            onAISettingsChanged={this.onAISettingsChanged}
           />
         )
         break
@@ -909,7 +931,13 @@ export class Preferences extends React.Component<
 
     dispatcher.setDiffCheckMarksSetting(this.state.showDiffCheckMarks)
 
+    saveAISettings(this.state.aiSettings)
+
     this.props.onDismissed()
+  }
+
+  private onAISettingsChanged = (aiSettings: IAISettings) => {
+    this.setState({ aiSettings })
   }
 
   private onTabClicked = (index: number) => {

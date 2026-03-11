@@ -4076,4 +4076,39 @@ export class Dispatcher {
   public toggleChangesFilterVisibility() {
     this.appStore._toggleChangesFilterVisibility()
   }
+
+  // ── AI Extension Methods ──────────────────────────────────────────
+
+  public generateAICommitMessage(
+    repository: Repository,
+    filesSelected: ReadonlyArray<WorkingDirectoryFileChange>,
+    adHocInstructions?: string
+  ) {
+    return this.appStore._generateAICommitMessage(
+      repository,
+      filesSelected,
+      adHocInstructions
+    )
+  }
+
+  public generateAIPRDescription(
+    repository: Repository,
+    adHocInstructions?: string
+  ) {
+    return this.appStore._generateAIPRDescription(
+      repository,
+      adHocInstructions
+    )
+  }
+
+  public generateAIPRReview(
+    repository: Repository,
+    adHocInstructions?: string
+  ) {
+    return this.appStore._generateAIPRReview(repository, adHocInstructions)
+  }
+
+  public cancelAIOperation(repository: Repository) {
+    return this.appStore._cancelAIOperation(repository)
+  }
 }

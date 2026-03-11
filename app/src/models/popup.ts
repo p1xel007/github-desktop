@@ -107,6 +107,11 @@ export enum PopupType {
   GenerateCommitMessageDisclaimer = 'GenerateCommitMessageDisclaimer',
   HookFailed = 'HookFailed',
   CommitProgress = 'CommitProgress',
+  AIPRDescription = 'AIPRDescription',
+  AIPRReview = 'AIPRReview',
+  AIBranchName = 'AIBranchName',
+  AIChangelog = 'AIChangelog',
+  AIExplain = 'AIExplain',
 }
 
 interface IBasePopup {
@@ -478,5 +483,29 @@ export type PopupDetail =
   | {
       type: PopupType.CommitProgress
       subscribeToCommitOutput: TerminalOutputListener
+    }
+  | {
+      type: PopupType.AIPRDescription
+      repository: Repository
+    }
+  | {
+      type: PopupType.AIPRReview
+      repository: Repository
+    }
+  | {
+      type: PopupType.AIBranchName
+      repository: Repository
+      onBranchNameChosen: (name: string) => void
+    }
+  | {
+      type: PopupType.AIChangelog
+      repository: Repository
+      baseBranch: string
+    }
+  | {
+      type: PopupType.AIExplain
+      repository: Repository
+      diff: string
+      filePath: string
     }
 export type Popup = IBasePopup & PopupDetail

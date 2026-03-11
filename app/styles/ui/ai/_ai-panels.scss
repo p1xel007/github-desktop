@@ -1,0 +1,86 @@
+.ai-review-results {
+  margin-top: 12px;
+
+  h3 {
+    font-size: var(--font-size);
+    margin: 12px 0 6px;
+  }
+}
+
+.ai-review-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-review-issue {
+  border: 1px solid var(--box-border-color);
+  border-radius: var(--border-radius);
+  padding: 8px 12px;
+
+  &.ai-review-severity-error {
+    border-left: 3px solid var(--color-deleted);
+  }
+
+  &.ai-review-severity-warning {
+    border-left: 3px solid var(--color-modified);
+  }
+
+  &.ai-review-severity-info {
+    border-left: 3px solid var(--color-new);
+  }
+}
+
+.ai-review-issue-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ai-review-badge {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 3px;
+
+  &.ai-review-severity-error {
+    background: var(--color-deleted);
+    color: white;
+  }
+
+  &.ai-review-severity-warning {
+    background: var(--color-modified);
+    color: white;
+  }
+
+  &.ai-review-severity-info {
+    background: var(--color-new);
+    color: white;
+  }
+}
+
+.ai-review-file {
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary-color);
+}
+
+.ai-review-issue-message {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.ai-review-suggestion {
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: var(--box-alt-background-color);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+}
+
+.ai-review-no-issues {
+  color: var(--color-new);
+  font-style: italic;
+}

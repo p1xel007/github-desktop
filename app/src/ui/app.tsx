@@ -198,6 +198,11 @@ import {
 } from './secret-scanning/bypass-push-protection-dialog'
 import { HookFailed } from './hook-failed/hook-failed'
 import { CommitProgress } from './commit-progress/commit-progress'
+import { AIPRDescriptionDialog } from './ai/ai-pr-description-dialog'
+import { AIPRReviewPanel } from './ai/ai-pr-review-panel'
+import { AIBranchNameDialog } from './ai/ai-branch-name-dialog'
+import { AIChangelogDialog } from './ai/ai-changelog-dialog'
+import { AIExplainDialog } from './ai/ai-explain-dialog'
 
 const MinuteInMilliseconds = 1000 * 60
 const HourInMilliseconds = MinuteInMilliseconds * 60
@@ -2592,6 +2597,69 @@ export class App extends React.Component<IAppProps, IAppState> {
           <CommitProgress
             key="commit-progress-dialog"
             subscribeToCommitOutput={popup.subscribeToCommitOutput}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.AIPRDescription: {
+        const repoState = this.props.repositoryStateManager.get(popup.repository)
+        const aiState = repoState.aiState
+        return (
+          <AIPRDescriptionDialog
+            key="ai-pr-description"
+            repository={popup.repository}
+            dispatcher={this.props.dispatcher}
+            generatedDescription={aiState.generatedPRDescription}
+            isGenerating={aiState.isAIOperationInProgress}
+            lastError={aiState.lastAIError}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.AIPRReview: {
+        const repoState = this.props.repositoryStateManager.get(popup.repository)
+        const aiState = repoState.aiState
+        return (
+          <AIPRReviewPanel
+            key="ai-pr-review"
+            repository={popup.repository}
+            dispatcher={this.props.dispatcher}
+            reviewFeedback={aiState.prReviewFeedback}
+            isGenerating={aiState.isAIOperationInProgress}
+            lastError={aiState.lastAIError}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.AIBranchName: {
+        return (
+          <AIBranchNameDialog
+            key="ai-branch-name"
+            repository={popup.repository}
+            dispatcher={this.props.dispatcher}
+            onBranchNameChosen={popup.onBranchNameChosen}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.AIChangelog: {
+        return (
+          <AIChangelogDialog
+            key="ai-changelog"
+            repository={popup.repository}
+            dispatcher={this.props.dispatcher}
+            baseBranch={popup.baseBranch}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.AIExplain: {
+        return (
+          <AIExplainDialog
+            key="ai-explain"
+            repository={popup.repository}
+            diff={popup.diff}
+            filePath={popup.filePath}
             onDismissed={onPopupDismissedFn}
           />
         )

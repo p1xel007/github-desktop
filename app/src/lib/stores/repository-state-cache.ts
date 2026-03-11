@@ -375,5 +375,13 @@ function getInitialRepositoryState(): IRepositoryState {
     multiCommitOperationState: null,
     hasCommitHooks: false,
     skipCommitHooks: false,
+    aiState: {
+      isAIOperationInProgress: false,
+      activeAIOperation: null,
+      lastAIError: null,
+      generatedPRDescription: null,
+      prReviewFeedback: null,
+      generatedChangelog: null,
+    },
   }
 }

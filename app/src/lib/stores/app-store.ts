@@ -191,6 +191,8 @@ import {
   getRemoteURL,
   getGlobalConfigPath,
   getFilesDiffText,
+  getBranchDiffText,
+  getBranchDiffStat,
   TerminalOutput,
   HookProgress,
 } from '../git'
@@ -356,6 +358,21 @@ import {
 import { updateStore } from '../../ui/lib/update-store'
 import { BypassReasonType } from '../../ui/secret-scanning/bypass-push-protection-dialog'
 import { getRepoHooks } from '../hooks/get-repo-hooks'
+import { AIOperationType } from '../app-state'
+import { AIError } from '../ai/ai-error'
+import {
+  loadAISettings,
+  getEffectiveProvider,
+  getEffectiveModel,
+} from '../ai/ai-config'
+import { getAIProviderKey } from '../ai/ai-key-store'
+import { createAIProvider } from '../ai/ai-provider-registry'
+import { loadFullContext } from '../ai/ai-context'
+import { PromptTemplateID, loadPromptTemplates } from '../ai/ai-prompts'
+import { generateAICommitMessage } from '../ai/features/commit-message-ai'
+import { generateAIPRDescription } from '../ai/features/pr-description-ai'
+import { generateAIPRReview } from '../ai/features/pr-review-ai'
+import { initializeAIProviders } from '../ai/ai-init'
 
 const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
 
@@ -673,6 +690,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.initializeZoomFactor()
     this.wireupIpcEventHandlers()
     this.wireupStoreEventHandlers()
+    initializeAIProviders()
     getAppMenu()
     this.tutorialAssessor = new OnboardingTutorialAssessor(
       this.getResolvedExternalEditor
@@ -8641,6 +8659,297 @@ export class AppStore extends TypedBaseStore<IAppState> {
     setBoolean(showChangesFilterKey, this.showChangesFilter)
     this.updateMenuLabelsForSelectedRepository()
     this.emitUpdate()
+  }
+
+  // ── AI Extension Methods ──────────────────────────────────────────
+
+  private aiAbortController: AbortController | null = null
+
+  private async withAIOperation<T>(
+    repository: Repository,
+    operation: AIOperationType,
+    fn: (signal: AbortSignal) => Promise<T>
+  ): Promise<T | null> {
+    const state = this.repositoryStateCache.get(repository)
+    if (state.aiState.isAIOperationInProgress) {
+      return null
+    }
+
+    this.aiAbortController = new AbortController()
+    this.repositoryStateCache.update(repository, () => ({
+      aiState: {
+        ...state.aiState,
+        isAIOperationInProgress: true,
+        activeAIOperation: operation,
+        lastAIError: null,
+      },
+    }))
+    this.emitUpdate()
+
+    try {
+      return await fn(this.aiAbortController.signal)
+    } catch (e) {
+      const errorMessage =
+        e instanceof AIError ? e.userFacingMessage : String(e)
+      this.repositoryStateCache.update(repository, s => ({
+        aiState: {
+          ...s.aiState,
+          lastAIError: errorMessage,
+        },
+      }))
+      this.emitUpdate()
+      return null
+    } finally {
+      this.aiAbortController = null
+      this.repositoryStateCache.update(repository, s => ({
+        aiState: {
+          ...s.aiState,
+          isAIOperationInProgress: false,
+          activeAIOperation: null,
+        },
+      }))
+      this.emitUpdate()
+    }
+  }
+
+  public async _generateAICommitMessage(
+    repository: Repository,
+    filesSelected: ReadonlyArray<WorkingDirectoryFileChange>,
+    adHocInstructions: string = ''
+  ): Promise<boolean> {
+    const settings = loadAISettings()
+    if (!settings.enabled || !settings.features.commitMessage.enabled) {
+      return false
+    }
+
+    const result = await this.withAIOperation(
+      repository,
+      AIOperationType.CommitMessage,
+      async signal => {
+        const provider = createAIProvider(
+          getEffectiveProvider(settings, 'commitMessage')
+        )
+        const apiKey = await getAIProviderKey(provider.config.id)
+        const endpoint =
+          settings.providerEndpoints[provider.config.id]
+        provider.initialize(apiKey ?? '', endpoint)
+
+        const commitToAmend =
+          this.repositoryStateCache.get(repository)?.commitToAmend?.sha ??
+          undefined
+        const diff = await getFilesDiffText(
+          repository,
+          filesSelected,
+          commitToAmend ? `${commitToAmend}^` : undefined
+        )
+        if (!diff) {
+          return null
+        }
+
+        const branchTip =
+          this.repositoryStateCache.get(repository)?.branchesState?.tip
+        const branchName =
+          branchTip?.kind === TipState.Valid ? branchTip.branch.name : ''
+
+        const fileList = filesSelected.map(f => f.path).join(', ')
+
+        const templates = loadPromptTemplates()
+        const template = templates[PromptTemplateID.CommitMessage]
+
+        const context = await loadFullContext(
+          repository,
+          PromptTemplateID.CommitMessage,
+          settings.globalContext,
+          adHocInstructions
+        )
+
+        const model = getEffectiveModel(settings, 'commitMessage')
+
+        const response = await generateAICommitMessage(
+          provider,
+          diff,
+          fileList,
+          branchName,
+          context,
+          template,
+          model,
+          settings.temperature,
+          signal
+        )
+
+        this._setCommitMessage(repository, {
+          summary: response.title,
+          description: response.description,
+          timestamp: Date.now(),
+        })
+
+        return response
+      }
+    )
+
+    return result !== null
+  }
+
+  public async _generateAIPRDescription(
+    repository: Repository,
+    adHocInstructions: string = ''
+  ): Promise<boolean> {
+    const settings = loadAISettings()
+    if (!settings.enabled || !settings.features.prDescription.enabled) {
+      return false
+    }
+
+    const result = await this.withAIOperation(
+      repository,
+      AIOperationType.PRDescription,
+      async signal => {
+        const provider = createAIProvider(
+          getEffectiveProvider(settings, 'prDescription')
+        )
+        const apiKey = await getAIProviderKey(provider.config.id)
+        const endpoint =
+          settings.providerEndpoints[provider.config.id]
+        provider.initialize(apiKey ?? '', endpoint)
+
+        const state = this.repositoryStateCache.get(repository)
+        const branchTip = state?.branchesState?.tip
+        const branchName =
+          branchTip?.kind === TipState.Valid ? branchTip.branch.name : ''
+        const baseBranch =
+          state?.branchesState?.defaultBranch?.name ?? 'main'
+
+        // Get commits for this branch
+        const commitSHAs = state?.pullRequestState?.commitSHAs ?? []
+        const commitMessages = commitSHAs
+          .map(sha => state?.commitLookup.get(sha)?.summary ?? '')
+          .filter(s => s.length > 0)
+          .join('\n')
+
+        // Get diff between current branch and base
+        const diff = await getBranchDiffText(repository, baseBranch)
+
+        if (!diff) {
+          return null
+        }
+
+        const templates = loadPromptTemplates()
+        const template = templates[PromptTemplateID.PRDescription]
+        const context = await loadFullContext(
+          repository,
+          PromptTemplateID.PRDescription,
+          settings.globalContext,
+          adHocInstructions
+        )
+        const model = getEffectiveModel(settings, 'prDescription')
+
+        const response = await generateAIPRDescription(
+          provider,
+          diff,
+          commitMessages,
+          branchName,
+          baseBranch,
+          context,
+          template,
+          model,
+          settings.temperature,
+          signal
+        )
+
+        this.repositoryStateCache.update(repository, s => ({
+          aiState: {
+            ...s.aiState,
+            generatedPRDescription: response,
+          },
+        }))
+        this.emitUpdate()
+
+        return response
+      }
+    )
+
+    return result !== null
+  }
+
+  public async _generateAIPRReview(
+    repository: Repository,
+    adHocInstructions: string = ''
+  ): Promise<boolean> {
+    const settings = loadAISettings()
+    if (!settings.enabled || !settings.features.prReview.enabled) {
+      return false
+    }
+
+    const result = await this.withAIOperation(
+      repository,
+      AIOperationType.PRReview,
+      async signal => {
+        const provider = createAIProvider(
+          getEffectiveProvider(settings, 'prReview')
+        )
+        const apiKey = await getAIProviderKey(provider.config.id)
+        const endpoint =
+          settings.providerEndpoints[provider.config.id]
+        provider.initialize(apiKey ?? '', endpoint)
+
+        const state = this.repositoryStateCache.get(repository)
+        const branchTip = state?.branchesState?.tip
+        const baseBranch =
+          state?.branchesState?.defaultBranch?.name ?? 'main'
+
+        const prTitle =
+          branchTip?.kind === TipState.Valid ? branchTip.branch.name : ''
+        const prDescription = ''
+
+        const diff = await getBranchDiffText(repository, baseBranch)
+
+        if (!diff) {
+          return null
+        }
+
+        const fileList = await getBranchDiffStat(repository, baseBranch)
+
+        const templates = loadPromptTemplates()
+        const template = templates[PromptTemplateID.PRReview]
+        const context = await loadFullContext(
+          repository,
+          PromptTemplateID.PRReview,
+          settings.globalContext,
+          adHocInstructions
+        )
+        const model = getEffectiveModel(settings, 'prReview')
+
+        const response = await generateAIPRReview(
+          provider,
+          diff,
+          fileList,
+          prTitle,
+          prDescription,
+          context,
+          template,
+          model,
+          settings.temperature,
+          signal
+        )
+
+        this.repositoryStateCache.update(repository, s => ({
+          aiState: {
+            ...s.aiState,
+            prReviewFeedback: response,
+          },
+        }))
+        this.emitUpdate()
+
+        return response
+      }
+    )
+
+    return result !== null
+  }
+
+  public _cancelAIOperation(repository: Repository): void {
+    if (this.aiAbortController) {
+      this.aiAbortController.abort()
+    }
   }
 }
 

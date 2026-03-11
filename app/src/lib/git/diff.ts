@@ -455,6 +455,58 @@ export async function getFilesDiffText(
   return outputString
 }
 
+/**
+ * Get the diff text between two branches/refs as a plain string.
+ * Used by AI features to generate PR descriptions and reviews.
+ */
+export async function getBranchDiffText(
+  repository: Repository,
+  baseBranch: string,
+  headRef: string = 'HEAD'
+): Promise<string> {
+  const args = [
+    'diff',
+    '--no-ext-diff',
+    '--no-color',
+    `${baseBranch}...${headRef}`,
+  ]
+
+  const { stdout } = await git(args, repository.path, 'getBranchDiffText', {
+    successExitCodes: new Set([0]),
+    encoding: 'buffer',
+  })
+
+  // Limit to 10MB
+  if (stdout.length > 10 * 1024 * 1024) {
+    throw new Error('Branch diff is too large to process')
+  }
+
+  return stdout.toString('utf8')
+}
+
+/**
+ * Get the diff stat summary between two branches/refs.
+ * Used by AI features.
+ */
+export async function getBranchDiffStat(
+  repository: Repository,
+  baseBranch: string,
+  headRef: string = 'HEAD'
+): Promise<string> {
+  const args = [
+    'diff',
+    '--stat',
+    '--no-color',
+    `${baseBranch}...${headRef}`,
+  ]
+
+  const result = await git(args, repository.path, 'getBranchDiffStat', {
+    successExitCodes: new Set([0]),
+  })
+
+  return result.stdout
+}
+
 async function getImageDiff(
   repository: Repository,
   file: FileChange,

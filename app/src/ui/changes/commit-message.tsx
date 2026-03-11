@@ -65,7 +65,9 @@ import { WorkingDirectoryFileChange } from '../../models/status'
 import {
   enableCommitMessageGeneration,
   enableHooksEnvironment,
+  enableAIFeatures,
 } from '../../lib/feature-flag'
+import { AICommitButton } from '../ai/ai-commit-button'
 import { AriaLiveContainer } from '../accessibility/aria-live-container'
 import { HookProgress } from '../../lib/git'
 import { assertNever } from '../../lib/fatal-error'
@@ -218,6 +220,18 @@ interface ICommitMessageProps {
   readonly onUpdateCommitOptions: (
     repository: Repository,
     options: CommitOptions
+  ) => void
+
+  /** Whether AI commit message generation is in progress */
+  readonly isAIGenerating?: boolean
+
+  /** Last error from AI commit message generation */
+  readonly aiLastError?: string | null
+
+  /** Callback to generate AI commit message */
+  readonly onGenerateAICommitMessage?: (
+    filesSelected: ReadonlyArray<WorkingDirectoryFileChange>,
+    adHocInstructions: string
   ) => void
 }
 
@@ -1013,6 +1027,55 @@ export class CommitMessage extends React.Component<
     )
   }
 
+  private get isAICommitButtonEnabled() {
+    return (
+      enableAIFeatures() &&
+      this.props.onGenerateAICommitMessage !== undefined
+    )
+  }
+
+  private onAIGenerateClick = (adHocInstructions: string) => {
+    this.props.onGenerateAICommitMessage?.(
+      this.props.filesSelected,
+      adHocInstructions
+    )
+  }
+
+  private renderAICommitButton() {
+    if (!this.isAICommitButtonEnabled) {
+      return null
+    }
+
+    const {
+      filesSelected,
+      isCommitting,
+      commitToAmend,
+      isAIGenerating,
+      aiLastError,
+    } = this.props
+
+    const noFilesSelected = filesSelected.length === 0
+    const noChangesAvailable = !commitToAmend && noFilesSelected
+
+    return (
+      <>
+        {(this.isCoAuthorInputEnabled || this.isCopilotButtonEnabled) && (
+          <div className="separator" />
+        )}
+        <AICommitButton
+          isEnabled={
+            isCommitting !== true &&
+            !isAIGenerating &&
+            !noChangesAvailable
+          }
+          isGenerating={isAIGenerating ?? false}
+          onGenerateCommitMessage={this.onAIGenerateClick}
+          lastError={aiLastError ?? null}
+        />
+      </>
+    )
+  }
+
   private renderCommitOptionsButton() {
     if (!this.isCommitOptionsButtonEnabled) {
       return null
@@ -1022,7 +1085,7 @@ export class CommitMessage extends React.Component<
 
     return (
       <>
-        {(this.isCoAuthorInputEnabled || this.isCopilotButtonEnabled) && (
+        {(this.isCoAuthorInputEnabled || this.isCopilotButtonEnabled || this.isAICommitButtonEnabled) && (
           <div className="separator" />
         )}
         <Button
@@ -1156,6 +1219,7 @@ export class CommitMessage extends React.Component<
     return (
       this.isCoAuthorInputEnabled ||
       this.isCopilotButtonEnabled ||
+      this.isAICommitButtonEnabled ||
       this.isCommitOptionsButtonEnabled
     )
   }
@@ -1175,6 +1239,7 @@ export class CommitMessage extends React.Component<
       <div className={className}>
         {this.renderCoAuthorToggleButton()}
         {this.renderCopilotButton()}
+        {this.renderAICommitButton()}
         {this.renderCommitOptionsButton()}
       </div>
     )

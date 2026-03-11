@@ -16,6 +16,9 @@ import {
 import { PullRequestFilesChanged } from './pull-request-files-changed'
 import { PullRequestMergeStatus } from './pull-request-merge-status'
 import { ComputedAction } from '../../models/computed-action'
+import { enableAIFeatures } from '../../lib/feature-flag'
+import { PopupType } from '../../models/popup'
+import { Button } from '../lib/button'
 
 interface IOpenPullRequestDialogProps {
   readonly repository: Repository
@@ -106,6 +109,20 @@ export class OpenPullRequestDialog extends React.Component<IOpenPullRequestDialo
   private onBranchChange = (branch: Branch) => {
     const { repository } = this.props
     this.props.dispatcher.updatePullRequestBaseBranch(repository, branch)
+  }
+
+  private onAIDescribe = () => {
+    this.props.dispatcher.showPopup({
+      type: PopupType.AIPRDescription,
+      repository: this.props.repository,
+    })
+  }
+
+  private onAIReview = () => {
+    this.props.dispatcher.showPopup({
+      type: PopupType.AIPRReview,
+      repository: this.props.repository,
+    })
   }
 
   private renderHeader() {
@@ -272,6 +289,17 @@ export class OpenPullRequestDialog extends React.Component<IOpenPullRequestDialo
     return (
       <DialogFooter>
         <PullRequestMergeStatus mergeStatus={mergeStatus} />
+
+        {enableAIFeatures() && (
+          <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+            <Button onClick={this.onAIDescribe} tooltip="Generate PR description with AI">
+              AI Describe
+            </Button>
+            <Button onClick={this.onAIReview} tooltip="Review PR changes with AI">
+              AI Review
+            </Button>
+          </div>
+        )}
 
         <OkCancelButtonGroup
           okButtonText={okButton}

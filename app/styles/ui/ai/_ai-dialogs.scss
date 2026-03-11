@@ -1,0 +1,24 @@
+#ai-pr-description,
+#ai-pr-review,
+#ai-branch-name,
+#ai-changelog,
+#ai-explain {
+  width: 600px;
+  min-height: 400px;
+}
+
+#ai-pr-description,
+#ai-changelog {
+  .text-area-component {
+    textarea {
+      font-family: var(--font-family-monospace);
+      font-size: var(--font-size-sm);
+    }
+  }
+}
+
+.ai-error-message {
+  color: var(--color-deleted);
+  font-size: var(--font-size-sm);
+  margin: 4px 0;
+}

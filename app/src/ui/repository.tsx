@@ -315,6 +315,7 @@ export class RepositoryView extends React.Component<
         hasCommitHooks={this.props.hasCommitHooks}
         skipCommitHooks={this.props.skipCommitHooks}
         onUpdateCommitOptions={this.props.onUpdateCommitOptions}
+        aiState={this.props.state.aiState}
       />
     )
   }
